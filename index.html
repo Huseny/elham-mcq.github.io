@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Medical Science Quiz</title>
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            min-height: 100vh;
+        }
+        /* Custom scrollbar for aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <!-- Quiz Container -->
+    <div id="quiz-container" class="bg-white p-6 md:p-10 rounded-2xl shadow-2xl max-w-4xl w-full transition-all duration-300">
+        <header class="mb-6 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-800 tracking-tight">Physiology & Pharmacology Challenge</h1>
+            <p id="score-display" class="text-lg font-medium text-indigo-600 mt-2">
+                Question <span id="current-q-num">1</span> of <span id="total-q-num"></span>
+                — Score: <span id="current-score">0</span>
+            </p>
+        </header>
+
+        <!-- Quiz Content Area -->
+        <div id="quiz-content">
+            <!-- Question will be inserted here -->
+        </div>
+
+        <!-- Navigation/Feedback Area -->
+        <div class="mt-8 pt-6 border-t flex flex-col items-center">
+            <div id="feedback-area" class="w-full mb-4 space-y-3 hidden">
+                <p id="correctness-status" class="text-xl font-semibold"></p>
+                <div id="explanation-text" class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700"></div>
+                <div id="detailed-explanation-text" class="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-800"></div>
+            </div>
+
+            <button id="next-button"
+                    class="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition-transform duration-150 transform hover:scale-105 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+                    onclick="nextQuestion()" disabled>
+                Next Question
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- QUIZ DATA (EMBEDDED JSON FROM UPLOAD) ---
+        const quizData = [
+  {
+    "question": "A 30-year-old man has been treated with several autonomic drugs for 4 weeks. He is now admitted to the emergency department showing signs of drug toxicity. Which of the following signs would distinguish between an overdose of a ganglion blocker versus a muscarinic blocker?",
+    "choices": [
+      { "option": "A", "answer": "Cycloplegia", "is_correct": false, "explanation": "Cycloplegia occurs with muscarinic blockade but does not distinguish between muscarinic and ganglion blockers." },
+      { "option": "B", "answer": "Dry skin in a warm environment", "is_correct": false, "explanation": "Dry skin occurs due to muscarinic blockade of sweat glands but is not unique to ganglion blockade." },
+      { "option": "C", "answer": "Miosis", "is_correct": false, "explanation": "Miosis is not expected in either ganglion or muscarinic blockade; instead, mydriasis is more typical." },
+      { "option": "D", "answer": "Postural hypotension", "is_correct": true, "explanation": "Ganglion blockers abolish sympathetic vascular tone, producing postural hypotension, which does not occur with muscarinic blockade." }
+    ],
+    "detailed_explanation": "Ganglion blockers prevent transmission in autonomic ganglia, removing sympathetic tone to vessels and causing marked postural hypotension. Muscarinic blockers mainly inhibit parasympathetic activity without this effect, making orthostatic hypotension the distinguishing sign."
+  },
+  {
+    "question": "A patient is brought to the emergency department with fever, hypotension, and a diastolic murmur. History reveals a cardiac valve replacement 5 years earlier. Blood cultures revealed catalase-positive, coagulase-negative Gram-positive cocci. Which organism is MOST likely the cause?",
+    "choices": [
+      { "option": "A", "answer": "Enterococcus faecalis", "is_correct": false, "explanation": "Enterococcus is catalase-negative, not catalase-positive." },
+      { "option": "B", "answer": "Kingella kingae", "is_correct": false, "explanation": "Kingella is a Gram-negative bacillus, not a Gram-positive coccus." },
+      { "option": "C", "answer": "Staphylococcus aureus", "is_correct": false, "explanation": "S. aureus is catalase-positive but coagulase-positive, not coagulase-negative." },
+      { "option": "D", "answer": "Staphylococcus epidermidis", "is_correct": true, "explanation": "S. epidermidis is catalase-positive, coagulase-negative, and a classic cause of prosthetic valve endocarditis." }
+    ],
+    "detailed_explanation": "Staphylococcus epidermidis is the most common cause of late prosthetic valve endocarditis. It is catalase-positive, coagulase-negative, and often linked to prosthetic material infections."
+  },
+  {
+    "question": "A patient with a cardiac valvular prosthesis presents with recurrent fever, petechiae, and blood cultures showing catalase-positive, coagulase-negative cocci that are novobiocin-sensitive and do not ferment mannitol. What is the MOST likely infectious agent?",
+    "choices": [
+      { "option": "A", "answer": "Staphylococcus aureus", "is_correct": false, "explanation": "S. aureus is coagulase-positive and ferments mannitol." },
+      { "option": "B", "answer": "Staphylococcus epidermidis", "is_correct": true, "explanation": "S. epidermidis is novobiocin-sensitive and does not ferment mannitol, fitting the description." },
+      { "option": "C", "answer": "Staphylococcus saprophyticus", "is_correct": false, "explanation": "S. saprophyticus is novobiocin-resistant, not sensitive." },
+      { "option": "D", "answer": "Streptococcus pneumoniae", "is_correct": false, "explanation": "S. pneumoniae is catalase-negative and α-hemolytic." }
+    ],
+    "detailed_explanation": "Among coagulase-negative staphylococci, S. epidermidis is novobiocin-sensitive and non-mannitol fermenting. It is a frequent cause of prosthetic valve endocarditis."
+  },
+  {
+    "question": "An asthma patient was given a nonselective β agonist to relieve bronchoconstriction. Which adverse effect would you expect?",
+    "choices": [
+      { "option": "A", "answer": "Tachycardia", "is_correct": true, "explanation": "Nonselective β agonists stimulate β1 receptors in the heart, causing tachycardia." },
+      { "option": "B", "answer": "Bradycardia", "is_correct": false, "explanation": "β agonists increase heart rate, they do not slow it." },
+      { "option": "C", "answer": "Worsening bronchoconstriction", "is_correct": false, "explanation": "β2 stimulation relieves bronchoconstriction, not worsen it." },
+      { "option": "D", "answer": "Hypotension", "is_correct": false, "explanation": "Peripheral vasodilation can occur, but tachycardia is the more prominent adverse effect." }
+    ],
+    "detailed_explanation": "Nonselective β agonists act on both β1 and β2 receptors. While β2 causes bronchodilation, β1 causes cardiac stimulation leading to tachycardia, the key adverse effect in asthma treatment."
+  },
+  {
+    "question": "A 12-year-old boy with a peanut allergy develops anaphylactic shock. Which drug is most appropriate for treatment?",
+    "choices": [
+      { "option": "A", "answer": "Epinephrine", "is_correct": true, "explanation": "Epinephrine activates α1 (vasoconstriction), β1 (heart stimulation), and β2 (bronchodilation), reversing anaphylaxis." },
+      { "option": "B", "answer": "Norepinephrine", "is_correct": false, "explanation": "Norepinephrine lacks strong β2 bronchodilation needed in anaphylaxis." },
+      { "option": "C", "answer": "Dobutamine", "is_correct": false, "explanation": "Dobutamine mainly stimulates β1 receptors, used in heart failure, not anaphylaxis." },
+      { "option": "D", "answer": "Phenylephrine", "is_correct": false, "explanation": "Phenylephrine is a pure α1 agonist with no bronchodilatory effect." }
+    ],
+    "detailed_explanation": "Anaphylaxis requires a drug that reverses airway constriction, vasodilation, and hypotension. Epinephrine is the only agent that addresses all three components simultaneously."
+  },
+  {
+    "question": "An elderly patient presents with acute heart failure, hypotension, and low cardiac output. Which drug is most appropriate to improve cardiac function?",
+    "choices": [
+      { "option": "A", "answer": "Isoproterenol", "is_correct": false, "explanation": "Isoproterenol increases heart rate but is not effective in improving contractility in heart failure." },
+      { "option": "B", "answer": "Fenoldopam", "is_correct": false, "explanation": "Fenoldopam is a vasodilator for hypertensive crises, not heart failure." },
+      { "option": "C", "answer": "Epinephrine", "is_correct": false, "explanation": "Epinephrine increases afterload, worsening heart failure." },
+      { "option": "D", "answer": "Dobutamine", "is_correct": true, "explanation": "Dobutamine selectively increases contractility and cardiac output, making it the drug of choice." }
+    ],
+    "detailed_explanation": "Dobutamine is a selective β1 agonist that improves contractility and output in acute decompensated heart failure, without significantly increasing afterload."
+  },
+  {
+    "question": "A hypertensive patient with mild asthma takes a β1-blocker and a herbal asthma remedy. The remedy relieves asthma but raises blood pressure. Which drug is most likely in the herbal remedy?",
+    "choices": [
+      { "option": "A", "answer": "Phenylephrine", "is_correct": false, "explanation": "Phenylephrine has no bronchodilatory effect." },
+      { "option": "B", "answer": "Norepinephrine", "is_correct": false, "explanation": "Norepinephrine does not effectively relieve asthma." },
+      { "option": "C", "answer": "Ephedrine", "is_correct": true, "explanation": "Ephedrine stimulates β2 receptors (bronchodilation) and increases blood pressure via α and β1 activity." },
+      { "option": "D", "answer": "Salmeterol", "is_correct": false, "explanation": "Salmeterol is a β2 agonist but does not raise blood pressure." }
+    ],
+    "detailed_explanation": "Ephedrine’s mixed sympathomimetic activity explains both the relief of asthma and the increase in blood pressure, especially in the presence of a β-blocker."
+  },
+  {
+    "question": "Which adrenergic drug is used in the treatment of overactive bladder?",
+    "choices": [
+      { "option": "A", "answer": "Phenylephrine", "is_correct": false, "explanation": "Phenylephrine is an α1 agonist for decongestion and BP support." },
+      { "option": "B", "answer": "Epinephrine", "is_correct": false, "explanation": "Epinephrine is for emergencies like anaphylaxis, not bladder disorders." },
+      { "option": "C", "answer": "Mirabegron", "is_correct": true, "explanation": "Mirabegron is a selective β3 agonist that relaxes the bladder wall and increases storage capacity." },
+      { "option": "D", "answer": "Dobutamine", "is_correct": false, "explanation": "Dobutamine is a β1 agonist for acute heart failure." }
+    ],
+    "detailed_explanation": "Mirabegron relaxes detrusor smooth muscle via β3 stimulation, making it effective for treating overactive bladder."
+  },
+  {
+    "question": "Which class of adrenergic agents is useful in the management of hypertension?",
+    "choices": [
+      { "option": "A", "answer": "α1 agonist", "is_correct": false, "explanation": "α1 agonists raise blood pressure, not lower it." },
+      { "option": "B", "answer": "β1 agonist", "is_correct": false, "explanation": "β1 agonists increase cardiac output and blood pressure." },
+      { "option": "C", "answer": "β3 agonist", "is_correct": false, "explanation": "β3 agonists act on bladder, not blood pressure regulation." },
+      { "option": "D", "answer": "α2 agonist", "is_correct": true, "explanation": "α2 agonists (like clonidine) reduce sympathetic outflow, lowering blood pressure." }
+    ],
+    "detailed_explanation": "α2 agonists act centrally to decrease norepinephrine release, reducing sympathetic tone and blood pressure. They are an established option in hypertension therapy."
+  },
+  {
+    "question": "Which of the following is correct regarding responses mediated by adrenergic receptors?",
+    "choices": [
+      { "option": "A", "answer": "Stimulation of α2 receptors increases NE release", "is_correct": false, "explanation": "α2 receptor stimulation decreases NE release (negative feedback)." },
+      { "option": "B", "answer": "Stimulation of β2 receptors causes bronchoconstriction", "is_correct": false, "explanation": "β2 stimulation causes bronchodilation, not constriction." },
+      { "option": "C", "answer": "Tachycardia", "is_correct": false, "explanation": "Tachycardia occurs via β1 stimulation but is not a receptor-specific mechanistic statement." },
+      { "option": "D", "answer": "Stimulation of α1 receptors increases blood pressure", "is_correct": true, "explanation": "α1 receptor stimulation causes vasoconstriction, increasing BP." }
+    ],
+    "detailed_explanation": "Adrenergic receptors mediate distinct effects: α1 causes vasoconstriction and increased BP; α2 decreases NE release; β1 increases heart rate and contractility; β2 causes bronchodilation. The correct mechanistic match is α1 increasing BP."
+  },
+  {
+    "question": "If a child presents with signs of anaphylaxis, what is the treatment of choice?",
+    "choices": [
+      { "option": "A", "answer": "Diphenhydramine", "is_correct": false, "explanation": "Diphenhydramine (antihistamine) may help with allergic reactions but is not life-saving in anaphylaxis." },
+      { "option": "B", "answer": "Ephedrine", "is_correct": false, "explanation": "Ephedrine has sympathomimetic activity but is not first-line for anaphylaxis." },
+      { "option": "C", "answer": "Epinephrine", "is_correct": true, "explanation": "Epinephrine rapidly reverses airway obstruction, hypotension, and shock in anaphylaxis." },
+      { "option": "D", "answer": "Isoproterenol", "is_correct": false, "explanation": "Isoproterenol is a β agonist but does not have the α1 vasoconstrictive effect needed in anaphylaxis." },
+      { "option": "E", "answer": "Methylprednisolone", "is_correct": false, "explanation": "Steroids help prevent recurrence but act too slowly for acute management." }
+    ],
+    "detailed_explanation": "Epinephrine is the treatment of choice for anaphylaxis because it stimulates α1 (vasoconstriction), β1 (increased cardiac output), and β2 (bronchodilation). Other drugs may serve as adjuncts but are not life-saving in the acute phase."
+  },
+  {
+    "question": "Which phase of the ECG has the lowest duration?",
+    "choices": [
+      { "option": "A", "answer": "P wave", "is_correct": false, "explanation": "The P wave duration is longer than the QRS complex." },
+      { "option": "B", "answer": "PR interval", "is_correct": false, "explanation": "PR interval is relatively long because it includes atrial depolarization and AV node delay." },
+      { "option": "C", "answer": "QRS complex", "is_correct": true, "explanation": "The QRS complex is the shortest event, representing rapid ventricular depolarization." },
+      { "option": "D", "answer": "T wave", "is_correct": false, "explanation": "The T wave lasts longer than the QRS complex." }
+    ],
+    "detailed_explanation": "The QRS complex, which represents ventricular depolarization, is very rapid and brief compared to other phases like the PR interval or T wave."
+  },
+  {
+    "question": "Where is the location of the SA and AV node respectively?",
+    "choices": [
+      { "option": "A", "answer": "Superior aspect of sulcus terminalis and triangle of Koch", "is_correct": true, "explanation": "The SA node lies at the superior end of the sulcus terminalis, and the AV node lies in the triangle of Koch." },
+      { "option": "B", "answer": "Inferior aspect of sulcus terminalis and atrioventricular septum", "is_correct": false, "explanation": "This does not describe the true anatomic positions." },
+      { "option": "C", "answer": "Right atrium and left atrium", "is_correct": false, "explanation": "Both nodes are in the right atrium region, not one in each atrium." },
+      { "option": "D", "answer": "Left ventricle and right ventricle", "is_correct": false, "explanation": "Neither conduction node is located in the ventricles." }
+    ],
+    "detailed_explanation": "The SA node is the pacemaker of the heart, located at the superior end of the sulcus terminalis near the superior vena cava. The AV node is located in the triangle of Koch in the right atrium."
+  },
+  {
+    "question": "In which lead does the QRS complex prominently have a negative deflection?",
+    "choices": [
+      { "option": "A", "answer": "aVR", "is_correct": true, "explanation": "aVR normally shows a negative QRS deflection since the mean depolarization vector is directed away from it." },
+      { "option": "B", "answer": "V1", "is_correct": false, "explanation": "V1 often shows a small R wave and deep S wave, not the most prominently negative overall." },
+      { "option": "C", "answer": "II", "is_correct": false, "explanation": "Lead II usually shows a positive QRS deflection." },
+      { "option": "D", "answer": "V5", "is_correct": false, "explanation": "V5 shows a positive QRS because it aligns with ventricular depolarization." }
+    ],
+    "detailed_explanation": "Lead aVR looks at the heart from the right upper side, opposite to the main depolarization vector, so QRS is dominantly negative there."
+  },
+  {
+    "question": "A person has an anterior myocardial infarction that ruptures into the pericardial space. Which chamber is most likely injured?",
+    "choices": [
+      { "option": "A", "answer": "Right atrium", "is_correct": false, "explanation": "The right atrium is not the common site of anterior wall infarcts." },
+      { "option": "B", "answer": "Left ventricle", "is_correct": true, "explanation": "The left ventricle forms most of the anterior wall and is most likely to rupture after anterior infarction." },
+      { "option": "C", "answer": "Right ventricle", "is_correct": false, "explanation": "The right ventricle lies anterior but is less commonly ruptured than the left ventricle." },
+      { "option": "D", "answer": "Interventricular septum", "is_correct": false, "explanation": "Septal rupture may occur but usually presents differently, not as blood in the pericardial space." }
+    ],
+    "detailed_explanation": "The anterior wall is supplied by the left anterior descending artery. Infarction in this area primarily affects the left ventricle, making it the chamber most at risk of rupture and hemopericardium."
+  },
+  {
+    "question": "The shortest event in the cardiac cycle is:",
+    "choices": [
+      { "option": "A", "answer": "ST interval", "is_correct": false, "explanation": "The ST interval is longer than the QRS complex." },
+      { "option": "B", "answer": "RR interval", "is_correct": false, "explanation": "The RR interval is the longest, representing the full cardiac cycle." },
+      { "option": "C", "answer": "ST segment", "is_correct": false, "explanation": "The ST segment is not the shortest." },
+      { "option": "D", "answer": "QRS complex", "is_correct": true, "explanation": "The QRS complex is the briefest event, representing rapid ventricular depolarization." }
+    ],
+    "detailed_explanation": "Among ECG events, the QRS complex is the shortest because ventricular depolarization occurs very quickly."
+  },
+  {
+    "question": "The longest event in the cardiac cycle is:",
+    "choices": [
+      { "option": "A", "answer": "ST interval", "is_correct": false, "explanation": "The ST interval is shorter than the RR interval." },
+      { "option": "B", "answer": "RR interval", "is_correct": true, "explanation": "The RR interval covers one entire cardiac cycle, making it the longest duration." },
+      { "option": "C", "answer": "ST segment", "is_correct": false, "explanation": "The ST segment is shorter than the PR interval and RR interval." },
+      { "option": "D", "answer": "QRS complex", "is_correct": false, "explanation": "The QRS complex is the shortest, not the longest." }
+    ],
+    "detailed_explanation": "The RR interval measures the time between two R waves (one full heartbeat), making it the longest duration event in the cardiac cycle."
+  },
+  {
+    "question": "Ventricular pressure peaks during which event?",
+    "choices": [
+      { "option": "A", "answer": "First heart sound", "is_correct": false, "explanation": "The first heart sound marks AV valve closure, before ventricular pressure peaks." },
+      { "option": "B", "answer": "Second heart sound", "is_correct": false, "explanation": "The second heart sound occurs after ventricular pressure has already peaked and is declining." },
+      { "option": "C", "answer": "QRS complex", "is_correct": true, "explanation": "The QRS initiates ventricular depolarization, leading to contraction and peak pressure." },
+      { "option": "D", "answer": "PQ segment", "is_correct": false, "explanation": "The PQ segment represents atrial conduction, not ventricular peak pressure." }
+    ],
+    "detailed_explanation": "Ventricular pressure rises during systole, which is triggered by the QRS complex. Peak pressure coincides with ventricular contraction following depolarization."
+  },
+  {
+    "question": "The atria contract during which portion of the ECG?",
+    "choices": [
+      { "option": "A", "answer": "PQ segment", "is_correct": true, "explanation": "The PQ segment represents atrial contraction before ventricular depolarization." },
+      { "option": "B", "answer": "ST segment", "is_correct": false, "explanation": "The ST segment reflects ventricular repolarization." },
+      { "option": "C", "answer": "QRS complex", "is_correct": false, "explanation": "The QRS represents ventricular depolarization, not atrial contraction." },
+      { "option": "D", "answer": "First heart sound", "is_correct": false, "explanation": "The first heart sound marks AV valve closure, occurring after atrial contraction." }
+    ],
+    "detailed_explanation": "The atria contract after the P wave, during the PQ segment, pushing blood into the ventricles before ventricular depolarization begins."
+  },
+  {
+    "question": "Which event is important to measure the delay of the AV node?",
+    "choices": [
+      { "option": "A", "answer": "QRS complex", "is_correct": false, "explanation": "QRS reflects ventricular depolarization, not AV nodal delay." },
+      { "option": "B", "answer": "PQ interval", "is_correct": true, "explanation": "The PR (PQ) interval includes AV nodal delay and is the best measure of AV node conduction time." },
+      { "option": "C", "answer": "QT interval", "is_correct": false, "explanation": "QT represents total ventricular depolarization and repolarization." },
+      { "option": "D", "answer": "ST segment", "is_correct": false, "explanation": "ST segment represents ventricular repolarization plateau, not AV nodal delay." }
+    ],
+    "detailed_explanation": "The PR interval measures the time from atrial depolarization to ventricular depolarization, reflecting conduction through the AV node. A prolonged PR indicates AV nodal block."
+  }, 
+  {
+    "question": "Identify the structure labeled as the right recurrent laryngeal nerve in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Right recurrent laryngeal nerve", "is_correct": true, "explanation": "This nerve loops around the subclavian artery on the right side and ascends toward the larynx." },
+      { "option": "B", "answer": "Phrenic nerve", "is_correct": false, "explanation": "The phrenic nerve runs anterior to the root of the lung, not in this location." },
+      { "option": "C", "answer": "Vagus nerve", "is_correct": false, "explanation": "The vagus nerve continues inferiorly without looping back around an artery." },
+      { "option": "D", "answer": "Left recurrent laryngeal nerve", "is_correct": false, "explanation": "The left recurrent laryngeal nerve loops under the aortic arch, not on the right side." }
+    ],
+    "detailed_explanation": "The right recurrent laryngeal nerve branches from the vagus, loops around the right subclavian artery, and ascends to the larynx. It supplies intrinsic laryngeal muscles except the cricothyroid."
+  },
+  {
+    "question": "Identify the structure labeled as the right coronary artery in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Right coronary artery", "is_correct": true, "explanation": "This artery originates from the right aortic sinus and runs in the coronary sulcus." },
+      { "option": "B", "answer": "Left coronary artery", "is_correct": false, "explanation": "The left coronary artery originates from the left aortic sinus." },
+      { "option": "C", "answer": "Circumflex artery", "is_correct": false, "explanation": "The circumflex artery is a branch of the left coronary artery." },
+      { "option": "D", "answer": "Great cardiac vein", "is_correct": false, "explanation": "This is a vein, not an artery, and lies alongside the LAD." }
+    ],
+    "detailed_explanation": "The right coronary artery arises from the right aortic sinus and runs in the atrioventricular groove, supplying the right atrium, right ventricle, and part of the conduction system."
+  },
+  {
+    "question": "Identify the structure labeled as the right aortic sinus in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Right aortic sinus", "is_correct": true, "explanation": "The right aortic sinus gives rise to the right coronary artery." },
+      { "option": "B", "answer": "Left aortic sinus", "is_correct": false, "explanation": "This gives rise to the left coronary artery." },
+      { "option": "C", "answer": "Posterior aortic sinus", "is_correct": false, "explanation": "The posterior sinus usually has no coronary artery." },
+      { "option": "D", "answer": "Pulmonary sinus", "is_correct": false, "explanation": "This is part of the pulmonary valve, not the aortic valve." }
+    ],
+    "detailed_explanation": "The right aortic sinus is one of the three sinuses of Valsalva. It gives rise to the right coronary artery."
+  },
+  {
+    "question": "Identify the structure labeled as chordae tendineae in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Chordae tendineae", "is_correct": true, "explanation": "These fibrous cords attach AV valve leaflets to papillary muscles." },
+      { "option": "B", "answer": "Papillary muscle", "is_correct": false, "explanation": "Papillary muscles anchor the chordae but are not the same structure." },
+      { "option": "C", "answer": "Trabeculae carneae", "is_correct": false, "explanation": "These are muscular ridges in the ventricles." },
+      { "option": "D", "answer": "Moderator band", "is_correct": false, "explanation": "This is a muscular band in the right ventricle containing part of the conduction system." }
+    ],
+    "detailed_explanation": "Chordae tendineae prevent valve prolapse by tethering AV valve leaflets to papillary muscles during systole."
+  },
+  {
+    "question": "Identify the layers labeled as myocardium and endocardium in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Myocardium and endocardium", "is_correct": true, "explanation": "Myocardium is the thick muscular layer, and endocardium is the thin inner lining." },
+      { "option": "B", "answer": "Epicardium and pericardium", "is_correct": false, "explanation": "Epicardium is the outer surface, covered by visceral pericardium." },
+      { "option": "C", "answer": "Endocardium and epicardium", "is_correct": false, "explanation": "This pairing omits myocardium." },
+      { "option": "D", "answer": "Fibrous and serous pericardium", "is_correct": false, "explanation": "These are outer coverings, not the functional layers of the heart wall." }
+    ],
+    "detailed_explanation": "The myocardium is the contractile muscular tissue, while the endocardium lines the inner surface of the heart chambers."
+  },
+  {
+    "question": "Identify the structure labeled as the coronary sulcus in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Coronary sulcus", "is_correct": true, "explanation": "The coronary sulcus is the groove between the atria and ventricles containing coronary vessels." },
+      { "option": "B", "answer": "Interventricular sulcus", "is_correct": false, "explanation": "This groove lies between the ventricles." },
+      { "option": "C", "answer": "Atrioventricular septum", "is_correct": false, "explanation": "This is an internal structure, not an external sulcus." },
+      { "option": "D", "answer": "Fossa ovalis", "is_correct": false, "explanation": "This is a depression in the interatrial septum." }
+    ],
+    "detailed_explanation": "The coronary sulcus, also called the atrioventricular groove, contains the right coronary artery and coronary sinus."
+  },
+  {
+    "question": "Identify the structure labeled as the anterior interventricular sulcus in the anatomy image.",
+    "choices": [
+      { "option": "A", "answer": "Anterior interventricular sulcus", "is_correct": true, "explanation": "This groove lies between the ventricles on the anterior surface and contains the LAD artery." },
+      { "option": "B", "answer": "Posterior interventricular sulcus", "is_correct": false, "explanation": "This groove lies on the diaphragmatic surface of the heart." },
+      { "option": "C", "answer": "Coronary sulcus", "is_correct": false, "explanation": "This sulcus separates atria from ventricles, not ventricles from each other." },
+      { "option": "D", "answer": "Atrioventricular sulcus", "is_correct": false, "explanation": "This is another term for the coronary sulcus, not the interventricular sulcus." }
+    ],
+    "detailed_explanation": "The anterior interventricular sulcus runs along the anterior surface of the heart between the ventricles and houses the LAD artery and great cardiac vein."
+  },
+  {
+    "question": "A person cut his hand and it bled, but bleeding stopped by clotting. Which function of the cardiovascular system is this?",
+    "choices": [
+      { "option": "A", "answer": "Protection", "is_correct": true, "explanation": "Clotting protects the body by preventing blood loss." },
+      { "option": "B", "answer": "Regulation", "is_correct": false, "explanation": "Regulation refers to temperature and pH balance." },
+      { "option": "C", "answer": "Transportation", "is_correct": false, "explanation": "Transportation involves carrying oxygen, nutrients, and wastes." },
+      { "option": "D", "answer": "Respiration", "is_correct": false, "explanation": "Respiration refers to oxygen and CO₂ exchange." }
+    ],
+    "detailed_explanation": "The cardiovascular system provides protection via clotting mechanisms and immune cell transport. Here, hemostasis is the protective function preventing hemorrhage."
+  },
+  {
+    "question": "Which structure divides the inferior mediastinum into anterior, middle, and posterior parts?",
+    "choices": [
+      { "option": "A", "answer": "Heart", "is_correct": true, "explanation": "The heart and its coverings divide the inferior mediastinum into three compartments." },
+      { "option": "B", "answer": "Thymus", "is_correct": false, "explanation": "The thymus lies in the superior and anterior mediastinum." },
+      { "option": "C", "answer": "Sternal angle", "is_correct": false, "explanation": "The sternal angle marks the boundary between superior and inferior mediastinum." },
+      { "option": "D", "answer": "Lung", "is_correct": false, "explanation": "The lungs are lateral to the mediastinum, not dividing it." }
+    ],
+    "detailed_explanation": "The inferior mediastinum is divided into anterior, middle (heart), and posterior regions. The heart in the middle mediastinum serves as the central divider."
+  },
+  {
+    "question": "Which structure is found in both the inferior and superior mediastinum?",
+    "choices": [
+      { "option": "A", "answer": "Thymus", "is_correct": true, "explanation": "The thymus extends from the superior into the anterior inferior mediastinum." },
+      { "option": "B", "answer": "Thoracic duct", "is_correct": false, "explanation": "The thoracic duct is located in the posterior mediastinum." },
+      { "option": "C", "answer": "Esophagus", "is_correct": false, "explanation": "The esophagus runs mainly in the posterior mediastinum, not anterior." },
+      { "option": "D", "answer": "Thoracic artery", "is_correct": false, "explanation": "No single 'thoracic artery' traverses both compartments." }
+    ],
+    "detailed_explanation": "The thymus is present in the superior mediastinum and often extends into the anterior part of the inferior mediastinum, making it the correct answer."
+  }, 
+  {
+    "question": "A person's pericardial fluid leaks into the fibrous pericardium from the pericardial cavity. What is the possible disease?",
+    "choices": [
+      { "option": "A", "answer": "Pericarditis", "is_correct": false, "explanation": "Pericarditis is inflammation of the pericardium, but does not describe fluid accumulation." },
+      { "option": "B", "answer": "Pericardial effusion", "is_correct": false, "explanation": "Effusion is fluid in the pericardial cavity, not within the fibrous layer itself." },
+      { "option": "C", "answer": "Cardiac tamponade", "is_correct": true, "explanation": "Cardiac tamponade occurs when fluid accumulates in a restricted pericardial space, compressing the heart." },
+      { "option": "D", "answer": "Pericardiacophrenic", "is_correct": false, "explanation": "This term refers to vessels, not a disease." }
+    ],
+    "detailed_explanation": "Cardiac tamponade occurs when fluid builds up within the pericardium under pressure, impairing cardiac filling. This leads to hypotension, muffled heart sounds, and jugular venous distension (Beck’s triad)."
+  },
+  {
+    "question": "Where is the location of the transverse sinus?",
+    "choices": [
+      { "option": "A", "answer": "Between the ascending aorta/pulmonary trunk and superior vena cava", "is_correct": true, "explanation": "The transverse sinus lies between the great arteries and veins of the heart." },
+      { "option": "B", "answer": "Behind the left atrium", "is_correct": false, "explanation": "This describes the oblique sinus, not the transverse sinus." },
+      { "option": "C", "answer": "Within the coronary sinus", "is_correct": false, "explanation": "The coronary sinus is a venous structure, not a pericardial reflection." },
+      { "option": "D", "answer": "Between atria and ventricles", "is_correct": false, "explanation": "This describes the coronary sulcus, not the transverse sinus." }
+    ],
+    "detailed_explanation": "The transverse pericardial sinus is a space in the pericardial cavity between the arterial (aorta and pulmonary trunk) and venous ends (SVC and pulmonary veins). It is surgically important for clamping vessels during cardiac surgery."
+  },
+  {
+    "question": "Which of the following is NOT a posterior content of the mediastinum?",
+    "choices": [
+      { "option": "A", "answer": "Thoracic duct", "is_correct": false, "explanation": "The thoracic duct runs in the posterior mediastinum." },
+      { "option": "B", "answer": "Esophagus", "is_correct": false, "explanation": "The esophagus lies in the posterior mediastinum." },
+      { "option": "C", "answer": "Descending thoracic aorta", "is_correct": false, "explanation": "The descending thoracic aorta is in the posterior mediastinum." },
+      { "option": "D", "answer": "Thymus", "is_correct": true, "explanation": "The thymus is in the anterior and superior mediastinum, not the posterior." }
+    ],
+    "detailed_explanation": "The posterior mediastinum contains the esophagus, thoracic duct, descending aorta, and azygos system. The thymus is restricted to anterior/superior compartments."
+  },
+  {
+    "question": "In the cardiac cycle, the least ventricular volume is recorded at what point?",
+    "choices": [
+      { "option": "A", "answer": "During rapid filling phase", "is_correct": false, "explanation": "Rapid filling increases ventricular volume, not decreases." },
+      { "option": "B", "answer": "At the end of atrial systole", "is_correct": false, "explanation": "Atrial systole increases ventricular volume." },
+      { "option": "C", "answer": "At the end of ventricular systole", "is_correct": true, "explanation": "End-systolic volume is the lowest ventricular volume." },
+      { "option": "D", "answer": "During isovolumic ventricular systole", "is_correct": false, "explanation": "During isovolumic systole, the volume is constant but not at its lowest." }
+    ],
+    "detailed_explanation": "The end-systolic volume, recorded after ventricular contraction but before filling begins, represents the lowest ventricular volume in the cycle."
+  },
+  {
+    "question": "Which phase of the cardiac cycle follows immediately after the beginning of the QRS complex?",
+    "choices": [
+      { "option": "A", "answer": "Diastasis", "is_correct": false, "explanation": "Diastasis occurs late in diastole, not after QRS." },
+      { "option": "B", "answer": "Atrial systole", "is_correct": false, "explanation": "Atrial systole occurs before the QRS complex." },
+      { "option": "C", "answer": "Ventricular ejection", "is_correct": false, "explanation": "Ejection follows after contraction has developed pressure, not immediately at QRS onset." },
+      { "option": "D", "answer": "Isovolumic contraction", "is_correct": true, "explanation": "The QRS marks ventricular depolarization, which initiates isovolumic contraction." }
+    ],
+    "detailed_explanation": "Immediately after the QRS, ventricles depolarize and begin isovolumic contraction, building pressure before valves open and ejection begins."
+  },
+  {
+    "question": "In the cardiac cycle, the largest ventricular volume is recorded at what point?",
+    "choices": [
+      { "option": "A", "answer": "During rapid filling phase", "is_correct": false, "explanation": "Volume increases here but is not maximal yet." },
+      { "option": "B", "answer": "At the end of atrial systole", "is_correct": true, "explanation": "End-diastolic volume is the maximum ventricular volume." },
+      { "option": "C", "answer": "At the end of ventricular systole", "is_correct": false, "explanation": "This is the minimum volume point." },
+      { "option": "D", "answer": "During isovolumic ventricular systole", "is_correct": false, "explanation": "Volume remains constant during this phase." }
+    ],
+    "detailed_explanation": "The largest ventricular volume is end-diastolic volume, achieved after atrial systole has filled the ventricles just before ventricular contraction begins."
+  },
+  {
+    "question": "On the ECG paper, 300 large squares on the horizontal axis represent what time?",
+    "choices": [
+      { "option": "A", "answer": "0.04 seconds", "is_correct": false, "explanation": "0.04 seconds corresponds to a single small square." },
+      { "option": "B", "answer": "16 seconds", "is_correct": false, "explanation": "16 seconds does not align with ECG calibration." },
+      { "option": "C", "answer": "60 seconds", "is_correct": true, "explanation": "300 large squares equal one minute on standard ECG paper (25 mm/s speed)." },
+      { "option": "D", "answer": "4 seconds", "is_correct": false, "explanation": "This is too short; 4 seconds is represented by 100 large squares." }
+    ],
+    "detailed_explanation": "At standard speed (25 mm/s), each large square is 0.2 seconds. 300 large squares equal 60 seconds, allowing heart rate calculation from the ECG strip."
+  },
+  {
+    "question": "The total delay between SA and AV node is approximately:",
+    "choices": [
+      { "option": "A", "answer": "0.13 seconds", "is_correct": false, "explanation": "This is slightly shorter than the real physiological delay." },
+      { "option": "B", "answer": "0.16 seconds", "is_correct": true, "explanation": "Normal conduction delay between SA and AV node is about 0.16 seconds." },
+      { "option": "C", "answer": "0.09 seconds", "is_correct": false, "explanation": "Too short for the physiological AV nodal delay." },
+      { "option": "D", "answer": "0.03 seconds", "is_correct": false, "explanation": "This is the normal delay across the AV bundle, not total SA–AV delay." }
+    ],
+    "detailed_explanation": "The total conduction delay between SA and AV node is approximately 0.16 seconds, ensuring sufficient ventricular filling before contraction."
+  }
+];
+        // --- END QUIZ DATA ---
+
+        // State variables
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answered = false;
+        
+        // Element references
+        const quizContent = document.getElementById('quiz-content');
+        const nextButton = document.getElementById('next-button');
+        const feedbackArea = document.getElementById('feedback-area');
+        const correctnessStatus = document.getElementById('correctness-status');
+        const explanationText = document.getElementById('explanation-text');
+        const detailedExplanationText = document.getElementById('detailed-explanation-text');
+        const totalQNum = document.getElementById('total-q-num');
+        const currentQNum = document.getElementById('current-q-num');
+        const currentScore = document.getElementById('current-score');
+
+        // Utility function to handle LaTeX style math/greek symbols
+        function formatText(text) {
+            // Replace LaTeX style \alpha, \beta, etc. with proper HTML entities or symbols
+            return text.replace(/\\\\([a-z]+)/g, (match, p1) => {
+                switch (p1) {
+                    case 'alpha': return '$\\alpha$';
+                    case 'beta': return '$\\beta$';
+                    case 'beta1': return '$\\beta$1';
+                    case 'beta2': return '$\\beta$2';
+                    case 'beta3': return '$\\beta$3';
+                    case 'alpha1': return '$\\alpha$1';
+                    case 'alpha2': return '$\\alpha$2';
+                    case 'CO2': return 'CO$_{2}$';
+                    default: return match;
+                }
+            });
+        }
+
+        // Initialize math rendering (using a simple utility for this context)
+        function renderMath() {
+            quizContent.innerHTML = formatText(quizContent.innerHTML);
+            explanationText.innerHTML = formatText(explanationText.innerHTML);
+            detailedExplanationText.innerHTML = formatText(detailedExplanationText.innerHTML);
+        }
+
+        // Renders the current question and choices
+        function renderQuestion() {
+            answered = false;
+            nextButton.disabled = true;
+            feedbackArea.classList.add('hidden');
+            
+            const q = quizData[currentQuestionIndex];
+            
+            // Update score display
+            totalQNum.textContent = quizData.length;
+            currentQNum.textContent = currentQuestionIndex + 1;
+            currentScore.textContent = score;
+
+            let html = `<p class="text-xl font-semibold mb-6 text-gray-800">${formatText(q.question)}</p>`;
+            html += `<div id="choices-grid" class="space-y-3">`;
+
+            q.choices.forEach((choice, index) => {
+                const choiceId = `choice-${index}`;
+                html += `
+                    <button id="${choiceId}" 
+                            class="w-full text-left p-4 border border-gray-200 rounded-xl shadow-sm bg-white hover:bg-indigo-50 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 disabled:pointer-events-none"
+                            onclick="checkAnswer(${index}, '${choiceId}')">
+                        <span class="font-bold text-indigo-600 mr-3">${choice.option}:</span> 
+                        ${formatText(choice.answer)}
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+            quizContent.innerHTML = html;
+        }
+
+        // Handles user selecting an answer
+        function checkAnswer(selectedIndex, selectedId) {
+            if (answered) return;
+            answered = true;
+            nextButton.disabled = false;
+
+            const q = quizData[currentQuestionIndex];
+            const selectedChoice = q.choices[selectedIndex];
+            const choices = document.getElementById('choices-grid').querySelectorAll('button');
+
+            // 1. Update button styling based on correctness
+            choices.forEach((button, index) => {
+                const choice = q.choices[index];
+                
+                button.disabled = true;
+                button.classList.remove('hover:bg-indigo-50', 'focus:ring-indigo-500');
+                
+                if (index === selectedIndex) {
+                    // This is the selected choice
+                    if (choice.is_correct) {
+                        button.classList.add('bg-green-100', 'border-green-500', 'ring-2', 'ring-green-500');
+                        score++; // Update score immediately
+                    } else {
+                        button.classList.add('bg-red-100', 'border-red-500', 'ring-2', 'ring-red-500');
+                    }
+                } else if (choice.is_correct) {
+                    // Highlight the correct answer if the user was wrong
+                    button.classList.add('bg-green-50', 'border-green-300');
+                }
+            });
+
+            // 2. Display feedback
+            feedbackArea.classList.remove('hidden');
+
+            if (selectedChoice.is_correct) {
+                correctnessStatus.textContent = "Correct! Well done.";
+                correctnessStatus.classList.remove('text-red-600');
+                correctnessStatus.classList.add('text-green-600');
+            } else {
+                correctnessStatus.textContent = "Incorrect. Keep studying!";
+                correctnessStatus.classList.remove('text-green-600');
+                correctnessStatus.classList.add('text-red-600');
+            }
+            
+            // Show choice-specific explanation
+            explanationText.innerHTML = `<span class="font-bold text-gray-900">Reason for Choice:</span> ${formatText(selectedChoice.explanation)}`;
+
+            // Show detailed topic explanation
+            detailedExplanationText.innerHTML = `<span class="font-bold text-indigo-900">Detailed Concept:</span> ${formatText(q.detailed_explanation)}`;
+        }
+
+        // Moves to the next question or shows results
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                renderQuestion();
+            } else {
+                renderResults();
+            }
+        }
+
+        // Shows the final results screen
+        function renderResults() {
+            const percentage = ((score / quizData.length) * 100).toFixed(1);
+            
+            let message = '';
+            let emoji = '';
+            if (percentage >= 90) {
+                message = "Excellent job! You are a master of this material.";
+                emoji = "🎉";
+            } else if (percentage >= 70) {
+                message = "Great effort! You clearly have a strong understanding.";
+                emoji = "👍";
+            } else if (percentage >= 50) {
+                message = "Good start! Keep reviewing the detailed explanations to improve.";
+                emoji = "🧠";
+            } else {
+                message = "Time to review! Focus on the concepts explained in the feedback.";
+                emoji = "📚";
+            }
+
+            quizContent.innerHTML = `
+                <div class="text-center py-12">
+                    <h2 class="text-4xl font-extrabold text-indigo-600 mb-4">Quiz Complete ${emoji}</h2>
+                    <p class="text-6xl font-black text-gray-900">${score} / ${quizData.length}</p>
+                    <p class="text-2xl font-semibold text-gray-700 mt-2 mb-6">(${percentage}%)</p>
+                    <p class="text-xl text-gray-800 max-w-lg mx-auto">${message}</p>
+                </div>
+            `;
+
+            // Reset UI controls for restart
+            nextButton.textContent = "Restart Quiz";
+            nextButton.disabled = false;
+            nextButton.onclick = startQuiz;
+            feedbackArea.classList.add('hidden');
+            
+            // Hide header score temporarily
+            document.getElementById('score-display').classList.add('hidden');
+        }
+
+        // Starts or restarts the quiz
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            
+            // Restore header display
+            document.getElementById('score-display').classList.remove('hidden');
+
+            nextButton.textContent = "Next Question";
+            nextButton.onclick = nextQuestion;
+
+            renderQuestion();
+            renderMath(); // Render math symbols after content is loaded
+        }
+
+        // Initial setup on window load
+        window.onload = startQuiz;
+    </script>
+</body>
+</html>
